@@ -54,8 +54,6 @@ class FlashLightService : Service(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
 
     private var lastX = 0f
-    private var lastY = 0f
-    private var lastZ = 0f
     private val alpha = 0.8f // Smoothing factor (adjust as needed)
 
     private var lastChopTime = 0L
@@ -104,11 +102,8 @@ class FlashLightService : Service(), SensorEventListener {
 
         if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
             val x = lowPass(event.values[0], lastX)
-//            val y = lowPass(event.values[1], lastY)
 
             lastX = x
-//            lastY = y
-//            lastZ = z
 
             val netAcceleration = sqrt(x * x)
             val now = System.currentTimeMillis()
