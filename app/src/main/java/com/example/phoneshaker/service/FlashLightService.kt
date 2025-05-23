@@ -3,6 +3,7 @@ package com.example.phoneshaker.service
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -10,17 +11,44 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.phoneshaker.R
 import com.example.phoneshaker.util.FlashLightManager
+import com.example.phoneshaker.util.isPhoneInPocket
+import com.example.phoneshaker.util.showToast
 import kotlin.math.sqrt
 
 class FlashLightService : Service(), SensorEventListener {
-    private companion object {
-        const val ACCELERATION_THRESHOLD = 30L
+    companion object {
+        const val ACCELERATION_THRESHOLD = 50L
         const val SHAKE_SLOP_TIME_MS = 500L
-        const val COOLDOWN_PERIOD = 500L // Cooldown period in milliseconds
+        const val COOLDOWN_PERIOD = 700L // Cooldown period in milliseconds
         const val CHANNEL_ID = "FlashlightServiceChannel"
+
+        private var isServiceRunning = false
+
+        fun start(context: Context) {
+            if (!isServiceRunning) {
+                val serviceIntent = Intent(context, FlashLightService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
+                isServiceRunning = true
+            }
+        }
+
+        fun stop(context: Context) {
+            if (isServiceRunning) {
+                val serviceIntent = Intent(context, FlashLightService::class.java)
+                context.stopService(serviceIntent)
+                isServiceRunning = false
+            }
+        }
+
+        fun isRunning(): Boolean = isServiceRunning
     }
 
     private lateinit var sensorManager: SensorManager
@@ -37,6 +65,7 @@ class FlashLightService : Service(), SensorEventListener {
 
     override fun onCreate() {
         super.onCreate()
+        showToast("Service Started")
         setupSensorStuff()
         startForegroundService()
     }
@@ -68,16 +97,20 @@ class FlashLightService : Service(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
+        if (this.isPhoneInPocket()) {
+            Log.d("jash", "onSensorChanged: phone in pocket, ignored")
+            return
+        }
+
         if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
             val x = lowPass(event.values[0], lastX)
-            val y = lowPass(event.values[1], lastY)
-            val z = lowPass(event.values[2], lastZ)
+//            val y = lowPass(event.values[1], lastY)
 
             lastX = x
-            lastY = y
-            lastZ = z
+//            lastY = y
+//            lastZ = z
 
-            val netAcceleration = sqrt(x * x + y * y + z * z)
+            val netAcceleration = sqrt(x * x)
             val now = System.currentTimeMillis()
 
             if (now - lastGestureTime >= COOLDOWN_PERIOD) {
@@ -110,6 +143,7 @@ class FlashLightService : Service(), SensorEventListener {
 
     override fun onDestroy() {
         sensorManager.unregisterListener(this)
+        showToast("Service Destroyed")
         super.onDestroy()
     }
 
@@ -120,4 +154,5 @@ class FlashLightService : Service(), SensorEventListener {
     private fun lowPass(current: Float, last: Float): Float {
         return last + alpha * (current - last)
     }
+
 }
