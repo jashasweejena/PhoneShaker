@@ -21,7 +21,7 @@ import kotlin.math.sqrt
 
 class FlashLightService : Service(), SensorEventListener {
     companion object {
-        const val ACCELERATION_THRESHOLD = 50L
+        var ACCELERATION_THRESHOLD = 50L
         const val SHAKE_SLOP_TIME_MS = 500L
         const val COOLDOWN_PERIOD = 700L // Cooldown period in milliseconds
         const val CHANNEL_ID = "FlashlightServiceChannel"

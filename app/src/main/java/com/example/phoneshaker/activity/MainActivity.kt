@@ -1,7 +1,6 @@
 package com.example.phoneshaker.activity
 
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
