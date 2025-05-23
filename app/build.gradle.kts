@@ -53,6 +53,12 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.5.4")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
+    // DI
+    implementation(project.dependencies.platform(libs.koin.bom))
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
