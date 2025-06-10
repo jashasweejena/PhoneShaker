@@ -11,21 +11,18 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import com.example.phoneshaker.R
-import com.example.phoneshaker.util.FlashLightManager
+import com.example.phoneshaker.util.ChopStateMachine
 import com.example.phoneshaker.util.isPhoneInPocket
 import com.example.phoneshaker.util.showToast
-import kotlin.math.sqrt
+import kotlin.math.abs
 
 class FlashLightService : Service(), SensorEventListener {
     companion object {
-        var ACCELERATION_THRESHOLD = 30L
-        const val SHAKE_SLOP_TIME_MS = 500L
-        const val COOLDOWN_PERIOD = 700L // Cooldown period in milliseconds
-        const val CHANNEL_ID = "FlashlightServiceChannel"
-
+        private val pitchBounds = 10f..90f
+        private const val CHANNEL_ID = "FlashlightServiceChannel"
         private var isServiceRunning = false
 
         fun start(context: Context) {
@@ -50,12 +47,9 @@ class FlashLightService : Service(), SensorEventListener {
     }
 
     private lateinit var sensorManager: SensorManager
-
-    private var lastX = 0f
-    private val alpha = 0.8f // Smoothing factor (adjust as needed)
-
-    private var lastChopTime = 0L
-    private var lastGestureTime = 0L
+    private val rotationMatrix = FloatArray(9)
+    private val orientationAngles = FloatArray(3)
+    private var currentPitchDeg = 0f
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -92,44 +86,52 @@ class FlashLightService : Service(), SensorEventListener {
         }
     }
 
-    override fun onSensorChanged(event: SensorEvent?) {
-        if (this.isPhoneInPocket()) {
-            Log.d("jash", "onSensorChanged: phone in pocket, ignored")
+    private fun isUpright(): Boolean {
+        return abs(currentPitchDeg) in pitchBounds
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor?.type != Sensor.TYPE_LINEAR_ACCELERATION) return
+        if (isPhoneInPocket() || !isUpright()) {
             return
         }
+        val acceleration = event.values[0]
+        ChopStateMachine.onChop(
+            now = SystemClock.elapsedRealtime(),
+            acceleration = acceleration,
+            context = this
+        )
+    }
 
-        if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
-            val x = lowPass(event.values[0], lastX)
+    private val rotationListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
 
-            lastX = x
-
-            val netAcceleration = sqrt(x * x)
-            val now = System.currentTimeMillis()
-
-            if (now - lastGestureTime >= COOLDOWN_PERIOD) {
-                if (netAcceleration >= ACCELERATION_THRESHOLD) {
-                    if (now - lastChopTime <= SHAKE_SLOP_TIME_MS) {
-                        FlashLightManager.toggleFlashLight(applicationContext)
-                        lastGestureTime = now
-                    }
-                    lastChopTime = now
-                }
-            }
+            SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+            SensorManager.getOrientation(rotationMatrix, orientationAngles)
+            currentPitchDeg = Math.toDegrees(orientationAngles[1].toDouble()).toFloat()
         }
+
+        override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) = Unit
     }
 
     private fun setupSensorStuff() {
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-        sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.also { accelerometer ->
+        sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)?.also { accelerometer ->
             sensorManager.registerListener(
                 this,
                 accelerometer,
-                3,
-                3
+                SensorManager.SENSOR_DELAY_GAME
+            )
+        }
+        sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.let { rotSensor ->
+            sensorManager.registerListener(
+                rotationListener,
+                rotSensor,
+                SensorManager.SENSOR_DELAY_UI
             )
         }
     }
-
 
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -143,9 +145,4 @@ class FlashLightService : Service(), SensorEventListener {
     override fun onTaskRemoved(rootIntent: Intent?) {
         stopSelf()
     }
-
-    private fun lowPass(current: Float, last: Float): Float {
-        return last + alpha * (current - last)
-    }
-
 }
