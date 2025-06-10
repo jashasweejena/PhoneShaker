@@ -57,14 +57,16 @@ fun SettingsPage(modifier: Modifier = Modifier) {
     val batteryOptimizationHelper = LocalBatteryHelper.current
     val batteryOptimizationStatus by batteryOptimizationHelper.getBatteryOptimizationStatus()
         .collectAsStateWithLifecycle()
+    var shouldDismissDialog by remember { mutableStateOf(true) }
     Column(modifier = modifier.padding(horizontal = 12.dp)) {
         var isSliderEnabled by remember { mutableStateOf(false) }
-        val shouldShowDialog = batteryOptimizationStatus != BatteryOptimizationState.GRANTED
+        val shouldShowDialog =
+            batteryOptimizationStatus != BatteryOptimizationState.GRANTED && shouldDismissDialog
         AnimatedVisibility(shouldShowDialog) {
             BatteryOptimizationDialog(onAllowClick = {
                 batteryOptimizationHelper.requestIgnoreBatteryOptimizations()
             }, onDismiss = {
-
+                shouldDismissDialog = false
             })
         }
         EnableSwitch {
