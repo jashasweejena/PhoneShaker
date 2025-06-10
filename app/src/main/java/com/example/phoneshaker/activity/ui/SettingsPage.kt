@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.phoneshaker.activity.ui.composition.LocalBatteryHelper
 import com.example.phoneshaker.service.FlashLightService
 import com.example.phoneshaker.util.BatteryOptimizationState
+import com.example.phoneshaker.util.ChopStateMachine
 import com.example.phoneshaker.util.DataStoreConstants
 import com.example.phoneshaker.util.PreferenceManager
 import kotlinx.coroutines.launch
@@ -218,7 +219,7 @@ fun SliderItem(modifier: Modifier = Modifier, isEnabled: Boolean) {
         Slider(
             enabled = isEnabled, value = sliderPosition, onValueChange = {
                 sliderPosition = it
-                FlashLightService.ACCELERATION_THRESHOLD = it.toLong()
+                ChopStateMachine.ACCELERATION_THRESHOLD = it.toLong()
             }, valueRange = sliderRange
         )
         Text("Threshold: ${sliderPosition.toInt()}")
