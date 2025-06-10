@@ -45,7 +45,8 @@ object ChopStateMachine {
                     chopState = ChopState.COOLDOWN
                     cooldownTimeMs = now
                 } else {
-                    firstHitTimeMs = now            // treat as new first chop
+                    firstHitTimeMs = now
+                    chopState = ChopState.IDLE
                 }
             }
 
